@@ -17,6 +17,7 @@ Everything runs in the browser — EPUBs are unzipped and parsed locally
 - Pause to reveal the surrounding sentence; tap any word to jump back to it
 - Keyboard controls: `Space` play/pause · `⌫` back a sentence · `←`/`→` nudge · `↑`/`↓` speed · `,`/`.` chapters
 - Try it without a file via the built-in sample passage
+- **Resume where you left off** — the open book and your position, speed, and progress are saved locally and restored on reload (Eject to forget it)
 - **Installable, offline-first PWA** — add it to your home screen and it runs with no network
 
 ## Install & offline use

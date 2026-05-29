@@ -2,7 +2,7 @@
    Bump CACHE whenever a precached asset changes to roll users onto the new build. */
 "use strict";
 
-const CACHE = "tachist-v1";
+const CACHE = "tachist-v2";
 
 // App shell — everything needed to run with no network. Relative URLs so the
 // same worker functions whether the site is served from a domain root or a
