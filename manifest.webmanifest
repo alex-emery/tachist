@@ -1,0 +1,17 @@
+{
+  "name": "TACHIST — tachistoscopic reader",
+  "short_name": "TACHIST",
+  "description": "A tachistoscopic (RSVP) EPUB reader. Drop in a book and read one word at a time, entirely on your device.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#15110d",
+  "theme_color": "#15110d",
+  "categories": ["books", "education", "productivity"],
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

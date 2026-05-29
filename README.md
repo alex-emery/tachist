@@ -17,6 +17,22 @@ Everything runs in the browser — EPUBs are unzipped and parsed locally
 - Pause to reveal the surrounding sentence; tap any word to jump back to it
 - Keyboard controls: `Space` play/pause · `⌫` back a sentence · `←`/`→` nudge · `↑`/`↓` speed · `,`/`.` chapters
 - Try it without a file via the built-in sample passage
+- **Installable, offline-first PWA** — add it to your home screen and it runs with no network
+
+## Install & offline use
+
+TACHIST is a Progressive Web App. Once you've loaded it over HTTPS (e.g. the
+GitHub Pages URL) the service worker (`sw.js`) caches the whole app shell, so it
+keeps working with no connection.
+
+- **iOS/iPadOS (Safari):** Share → **Add to Home Screen**.
+- **Android (Chrome):** menu → **Install app** / **Add to Home Screen**.
+- **Desktop (Chrome/Edge):** the install icon in the address bar.
+
+JSZip is vendored locally (`vendor/jszip.min.js`), so EPUB parsing works fully
+offline. The web fonts are loaded from Google Fonts and cached on first online
+visit; until then (or if you're offline on the very first run) the app falls
+back to system fonts and still functions normally.
 
 ## Running locally
 
