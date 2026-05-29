@@ -335,6 +335,61 @@ const els = {
   eject:$('ejectBtn'), mast:$('mastMeta')
 };
 
+/* ============ Persistence (resume last book + progress) ============ */
+const HAS_IDB = typeof indexedDB !== "undefined";
+const DB_NAME = "tachist", STORE = "state";
+const LS_WPM = "tachist:wpm", LS_PROG = "tachist:progress";
+function idbOpen(){
+  return new Promise((res,rej)=>{
+    const r = indexedDB.open(DB_NAME, 1);
+    r.onupgradeneeded = ()=>{ r.result.createObjectStore(STORE); };
+    r.onsuccess = ()=>res(r.result);
+    r.onerror = ()=>rej(r.error);
+  });
+}
+async function idbSet(key,val){ const db=await idbOpen(); return new Promise((res,rej)=>{ const tx=db.transaction(STORE,"readwrite"); tx.objectStore(STORE).put(val,key); tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error); }); }
+async function idbGet(key){ const db=await idbOpen(); return new Promise((res,rej)=>{ const tx=db.transaction(STORE,"readonly"); const rq=tx.objectStore(STORE).get(key); rq.onsuccess=()=>res(rq.result); rq.onerror=()=>rej(rq.error); }); }
+async function idbDel(key){ const db=await idbOpen(); return new Promise((res,rej)=>{ const tx=db.transaction(STORE,"readwrite"); tx.objectStore(STORE).delete(key); tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error); }); }
+
+// Progress is tiny and saved often; keep it in localStorage (synchronous, cheap).
+function saveProgress(){
+  if(!S.words.length) return;
+  try{ localStorage.setItem(LS_PROG, JSON.stringify({ i:S.i, read:S.read, t:Date.now() })); }catch(e){}
+}
+let _saveTimer = null, _lastSave = 0;
+function scheduleSaveProgress(){
+  const now = Date.now();
+  if(now - _lastSave > 1000){ _lastSave = now; saveProgress(); }
+  else { clearTimeout(_saveTimer); _saveTimer = setTimeout(()=>{ _lastSave = Date.now(); saveProgress(); }, 1000); }
+}
+// The book itself (word arrays) can be large — store it in IndexedDB, once per open.
+function persistBook(data){
+  if(!HAS_IDB) return;
+  idbSet("book", {
+    title: data.title, author: data.author || "",
+    words: data.words, paraEnd: [...data.paraEnd], chapters: data.chapters
+  }).then(saveProgress).catch(e=>console.warn("Could not save book for resume:", e));
+}
+function clearPersisted(){
+  try{ localStorage.removeItem(LS_PROG); }catch(e){}
+  if(HAS_IDB) idbDel("book").catch(()=>{});
+}
+async function restoreLast(){
+  try{ const w = +localStorage.getItem(LS_WPM); if(w>=100 && w<=1000) setWpm(w); }catch(e){}
+  if(!HAS_IDB) return;
+  let book;
+  try{ book = await idbGet("book"); }catch(e){ return; }
+  if(!book || !book.words || !book.words.length) return;
+  let prog = null;
+  try{ prog = JSON.parse(localStorage.getItem(LS_PROG) || "null"); }catch(e){}
+  book.paraEnd = new Set(book.paraEnd || []);
+  startBook(book, { restore:true });
+  if(prog && Number.isInteger(prog.i)){
+    S.read = Math.min(book.words.length, Math.max(prog.read || 0, prog.i));
+    seek(prog.i);
+  }
+}
+
 /* ============ EPUB parsing ============ */
 function xml(text){ return new DOMParser().parseFromString(text, "application/xml"); }
 function byLocal(root, name){
@@ -531,6 +586,7 @@ function tick(){
   renderWord(S.words[S.i], pausing);
   S.read = Math.max(S.read, S.i + 1);
   syncHud();
+  scheduleSaveProgress();
   const d = delayFor(S.i);
   S.timer = setTimeout(()=>{ S.i++; tick(); }, d);
 }
@@ -550,6 +606,7 @@ function pause(){
   els.playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>'; // play icon
   els.stage.style.borderColor = "var(--line)";
   refreshContext();        // ...and reappears the instant you stop
+  saveProgress();
 }
 function toggle(){ S.playing ? pause() : play(); }
 
@@ -557,6 +614,7 @@ function seek(idx){
   S.i = Math.max(0, Math.min(idx, S.words.length-1));
   renderWord(S.words[S.i], false);
   syncHud();
+  scheduleSaveProgress();
   if(!S.playing) refreshContext();
 }
 function nudge(n){ pause(); seek(S.i + n); }
@@ -672,7 +730,8 @@ async function loadFile(file){
     showLoading(false);
   }
 }
-function startBook(data){
+function startBook(data, opts){
+  opts = opts || {};
   S.words = data.words; S.paraEnd = data.paraEnd; S.chapters = data.chapters;
   S.i = 0; S.read = 0; pause();
   els.bookTitle.innerHTML = esc(data.title) + (data.author ? `  <em>— ${esc(data.author)}</em>` : "");
@@ -682,12 +741,14 @@ function startBook(data){
   els.reader.style.display = "flex";
   renderWord(S.words[0], false);
   syncHud();
+  if(!opts.restore) persistBook(data);   // remember this book so it resumes on reload
 }
 function eject(){
   pause();
   els.reader.style.display = "none";
   els.empty.style.display = "flex";
   els.mast.innerHTML = "one word · <b>at a time</b>";
+  clearPersisted();   // ejecting is a deliberate close — forget the saved book
 }
 
 /* ============ Sample ============ */
@@ -748,6 +809,7 @@ function setWpm(v){
   els.wpmRange.value = S.wpm; els.wpmVal.textContent = S.wpm;
   Array.from(els.wpmSteps.children).forEach(c=>c.classList.toggle("on", +c.dataset.w === S.wpm));
   syncHud();
+  try{ localStorage.setItem(LS_WPM, S.wpm); }catch(e){}
 }
 els.wpmRange.addEventListener("input", e=>setWpm(+e.target.value));
 els.wpmSteps.addEventListener("click", e=>{ if(e.target.dataset.w) setWpm(+e.target.dataset.w); });
@@ -772,6 +834,11 @@ document.addEventListener("keydown", e=>{
 });
 
 setWpm(300);
+restoreLast();   // bring back the last book + position, if any
+
+// Flush progress when the tab is backgrounded or closing.
+window.addEventListener("pagehide", saveProgress);
+document.addEventListener("visibilitychange", ()=>{ if(document.hidden) saveProgress(); });
 
 /* ============ Service worker (offline / installable) ============ */
 if("serviceWorker" in navigator){
