@@ -833,7 +833,10 @@ document.addEventListener("keydown", e=>{
   }
 });
 
-setWpm(300);
+// Start at the saved speed (read it before setWpm, which writes it back).
+let _initWpm = 300;
+try{ const w = +localStorage.getItem(LS_WPM); if(w >= 100 && w <= 1000) _initWpm = w; }catch(e){}
+setWpm(_initWpm);
 restoreLast();   // bring back the last book + position, if any
 
 // Flush progress when the tab is backgrounded or closing.
