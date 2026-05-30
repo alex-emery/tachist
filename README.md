@@ -35,6 +35,12 @@ offline. The web fonts are loaded from Google Fonts and cached on first online
 visit; until then (or if you're offline on the very first run) the app falls
 back to system fonts and still functions normally.
 
+The current build number shows in the footer (e.g. `v1.0.0`). When a new
+version has been deployed, opening the app (while online) surfaces an
+**"A new version is available — Reload"** notice; tap it to update in place,
+and you'll see an **"Updated to vX ✓"** confirmation. To cut a new release,
+bump `APP_VERSION` in both `index.html` and `sw.js`.
+
 ## Running locally
 
 It's a single static file. Open `index.html` in a browser, or serve the

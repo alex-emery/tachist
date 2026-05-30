@@ -1,8 +1,11 @@
 /* TACHIST service worker — offline app shell + runtime font caching.
-   Bump CACHE whenever a precached asset changes to roll users onto the new build. */
+   Bump APP_VERSION (here and in index.html) whenever a precached asset
+   changes; that rolls users onto the new build and triggers the in-app
+   "update available" notice. */
 "use strict";
 
-const CACHE = "tachist-v3";
+const APP_VERSION = "1.0.0";
+const CACHE = "tachist-" + APP_VERSION;
 
 // App shell — everything needed to run with no network. Relative URLs so the
 // same worker functions whether the site is served from a domain root or a
@@ -28,7 +31,8 @@ self.addEventListener("install", event => {
     caches.open(CACHE)
       // Don't let one missing/optional asset abort the whole install.
       .then(cache => Promise.allSettled(SHELL.map(url => cache.add(url))))
-      .then(() => self.skipWaiting())
+    // Note: no skipWaiting() here — a new worker waits until the user accepts
+    // the update (or all tabs close), so we never swap the app out underfoot.
   );
 });
 
@@ -38,6 +42,11 @@ self.addEventListener("activate", event => {
       .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
+});
+
+// The page posts this when the user taps "Reload" on the update notice.
+self.addEventListener("message", event => {
+  if (event.data && event.data.type === "SKIP_WAITING") self.skipWaiting();
 });
 
 self.addEventListener("fetch", event => {
